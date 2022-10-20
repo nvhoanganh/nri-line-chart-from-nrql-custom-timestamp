@@ -7,7 +7,7 @@ import {
     PolarAngleAxis,
     PolarRadiusAxis,
 } from 'recharts';
-import {Card, CardBody, HeadingText, NrqlQuery, Spinner, AutoSizer} from 'nr1';
+import { Card, CardBody, HeadingText, NrqlQuery, Spinner, AutoSizer, LineChart } from 'nr1';
 
 export default class MyAwesomeVisualizationVisualization extends React.Component {
     // Custom props you wish to be configurable in the UI must also be defined in
@@ -43,9 +43,12 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
      */
     transformData = (rawData) => {
         return rawData.map((entry) => ({
-            name: entry.metadata.name,
-            // Only grabbing the first data value because this is not time-series data.
-            value: entry.data[0].y,
+            ...entry,
+            data: entry.data.map((d) => ({
+                ...d,
+                y: d.temp,
+                x: (new Date(d.datetimeStr)).getTime()
+            }))
         }));
     };
 
@@ -57,7 +60,7 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
     };
 
     render() {
-        const {nrqlQueries, stroke, fill} = this.props;
+        const { nrqlQueries, stroke, fill } = this.props;
 
         const nrqlQueryPropsAvailable =
             nrqlQueries &&
@@ -71,13 +74,13 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
 
         return (
             <AutoSizer>
-                {({width, height}) => (
+                {({ width, height }) => (
                     <NrqlQuery
                         query={nrqlQueries[0].query}
                         accountId={parseInt(nrqlQueries[0].accountId)}
                         pollInterval={NrqlQuery.AUTO_POLL_INTERVAL}
                     >
-                        {({data, loading, error}) => {
+                        {({ data, loading, error }) => {
                             if (loading) {
                                 return <Spinner />;
                             }
@@ -86,27 +89,11 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
                                 return <ErrorState />;
                             }
 
-                            const transformedData = this.transformData(data);
+                            const data3 = this.transformData(data);
 
                             return (
-                                <RadarChart
-                                    width={width}
-                                    height={height}
-                                    data={transformedData}
-                                >
-                                    <PolarGrid />
-                                    <PolarAngleAxis dataKey="name" />
-                                    <PolarRadiusAxis
-                                        tickFormatter={this.formatTick}
-                                    />
-                                    <Radar
-                                        dataKey="value"
-                                        stroke={stroke || '#51C9B7'}
-                                        fill={fill || '#51C9B7'}
-                                        fillOpacity={0.6}
-                                    />
-                                </RadarChart>
-                            );
+                                <LineChart data={data3} fullWidth fullHeight />
+                            )
                         }}
                     </NrqlQuery>
                 )}
@@ -131,7 +118,7 @@ const EmptyState = () => (
                 An example NRQL query you can try is:
             </HeadingText>
             <code>
-                FROM NrUsage SELECT sum(usage) FACET metric SINCE 1 week ago
+                SELECT average(temp) from weatherHistory since 3 days ago FACET datetimeStr
             </code>
         </CardBody>
     </Card>
