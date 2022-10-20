@@ -13,17 +13,9 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
     // Custom props you wish to be configurable in the UI must also be defined in
     // the nr1.json file for the visualization. See docs for more details.
     static propTypes = {
-        /**
-         * A fill color to override the default fill color. This is an example of
-         * a custom chart configuration.
-         */
-        fill: PropTypes.string,
+        x: PropTypes.string,
+        y: PropTypes.string,
 
-        /**
-         * A stroke color to override the default stroke color. This is an example of
-         * a custom chart configuration.
-         */
-        stroke: PropTypes.string,
         /**
          * An array of objects consisting of a nrql `query` and `accountId`.
          * This should be a standard prop for any NRQL based visualizations.
@@ -41,13 +33,13 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
      * form accepted by the Recharts library's RadarChart.
      * (https://recharts.org/api/RadarChart).
      */
-    transformData = (rawData) => {
+    transformData = (rawData, x, y) => {
         return rawData.map((entry) => ({
             ...entry,
             data: entry.data.map((d) => ({
                 ...d,
-                y: d.temp,
-                x: (new Date(d.datetimeStr)).getTime()
+                y: d[y],
+                x: (new Date(d[x])).getTime()
             }))
         }));
     };
@@ -60,7 +52,7 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
     };
 
     render() {
-        const { nrqlQueries, stroke, fill } = this.props;
+        const { nrqlQueries, x, y } = this.props;
 
         const nrqlQueryPropsAvailable =
             nrqlQueries &&
@@ -89,7 +81,7 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
                                 return <ErrorState />;
                             }
 
-                            const data3 = this.transformData(data);
+                            const data3 = this.transformData(data, x, y);
 
                             return (
                                 <LineChart data={data3} fullWidth fullHeight />
@@ -118,7 +110,7 @@ const EmptyState = () => (
                 An example NRQL query you can try is:
             </HeadingText>
             <code>
-                SELECT average(temp) from weatherHistory since 3 days ago FACET datetimeStr
+                SELECT temp, datetimeStr from weatherHistory since 1 days ago limit max
             </code>
         </CardBody>
     </Card>
