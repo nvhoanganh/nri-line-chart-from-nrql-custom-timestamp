@@ -7,7 +7,7 @@ import {
     PolarAngleAxis,
     PolarRadiusAxis,
 } from 'recharts';
-import { Card, CardBody, HeadingText, NrqlQuery, Spinner, AutoSizer, LineChart } from 'nr1';
+import { Card, CardBody, HeadingText, NrqlQuery, Spinner, AutoSizer, LineChart, PlatformStateContext } from 'nr1';
 
 export default class MyAwesomeVisualizationVisualization extends React.Component {
     // Custom props you wish to be configurable in the UI must also be defined in
@@ -33,8 +33,8 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
      * form accepted by the Recharts library's RadarChart.
      * (https://recharts.org/api/RadarChart).
      */
-    transformData = (rawData, x, y) => {
-        return rawData.map((entry) => ({
+    transformData = (rawData, x, y, timeRange) => {
+        let toreturn = rawData.map((entry) => ({
             ...entry,
             data: entry.data.map((d) => ({
                 ...d,
@@ -42,6 +42,24 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
                 x: (new Date(d[x])).getTime()
             }))
         }));
+
+        if (timeRange) {
+            if (timeRange.duration) {
+                const nowd = new Date();
+                const sinceD = nowd.setMilliseconds(nowd.getMilliseconds() - timeRange.duration);
+
+                return toreturn.map((entry) => ({
+                    ...entry,
+                    data: entry.data.filter((d) => d.x >= sinceD)
+                }));
+            } else {
+                return toreturn.map((entry) => ({
+                    ...entry,
+                    data: entry.data.filter((d) => d.x >= timeRange.begin_time && d.x <= timeRange.end_time)
+                }));
+            }
+        }
+        return toreturn;
     };
 
     /**
@@ -65,31 +83,38 @@ export default class MyAwesomeVisualizationVisualization extends React.Component
         }
 
         return (
-            <AutoSizer>
-                {({ width, height }) => (
-                    <NrqlQuery
-                        query={nrqlQueries[0].query}
-                        accountId={parseInt(nrqlQueries[0].accountId)}
-                        pollInterval={NrqlQuery.AUTO_POLL_INTERVAL}
-                    >
-                        {({ data, loading, error }) => {
-                            if (loading) {
-                                return <Spinner />;
-                            }
+            <PlatformStateContext.Consumer>
+                {(platformState) => (
+                    <AutoSizer>
+                        {({ width, height }) => (
+                            <NrqlQuery
+                                query={nrqlQueries[0].query}
+                                accountId={parseInt(nrqlQueries[0].accountId)}
+                                pollInterval={NrqlQuery.AUTO_POLL_INTERVAL}
+                            >
+                                {({ data, loading, error }) => {
+                                    console.log(platformState);
 
-                            if (error) {
-                                return <ErrorState />;
-                            }
+                                    if (loading) {
+                                        return <Spinner />;
+                                    }
 
-                            const data3 = this.transformData(data, x, y);
+                                    if (error) {
+                                        return <ErrorState />;
+                                    }
 
-                            return (
-                                <LineChart data={data3} fullWidth fullHeight />
-                            )
-                        }}
-                    </NrqlQuery>
+                                    const data3 = this.transformData(data, x, y, platformState.timeRange);
+
+                                    return (
+                                        <LineChart data={data3} fullWidth fullHeight />
+                                    )
+                                }}
+                            </NrqlQuery>
+                        )}
+                    </AutoSizer>
                 )}
-            </AutoSizer>
+            </PlatformStateContext.Consumer>
+
         );
     }
 }
